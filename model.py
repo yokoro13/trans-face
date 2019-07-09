@@ -54,7 +54,20 @@ class Generator(nn.Module):
         # Replicate spatially and concatenate domain information.
         # Note that this type of label conditioning does not work at all if we use reflection padding in Conv2d.
         # This is because instance normalization ignores the shifting (or bias) effect.
+        
+        x = x.view(1, x.size(0), x.size(1), x.size(2))
+        c = c.view(1, c.size(0))
         c = c.view(c.size(0), c.size(1), 1, 1)
         c = c.repeat(1, 1, x.size(2), x.size(3))
         x = torch.cat([x, c], dim=1)
+
+
+        """print(x.shape)  # torch.Size([3, 256, 256])
+        print(c.shape)  # torch.Size([5])
+        c = c.view(c.size(0), 1, 1)
+        print(c.shape)  # torch.Size([5, 1, 1])
+        c = c.repeat(1, x.size(1), x.size(2))
+        print(c.shape)  # torch.Size([5, 256, 256])
+        x = torch.cat([x, c], dim=1)"""
+
         return self.main(x)

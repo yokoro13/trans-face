@@ -6,6 +6,7 @@ from model import Generator
 from torchvision.utils import save_image
 from PIL import Image, ImageDraw, ImageFilter
 from torchvision import transforms as T
+import torchvision.transforms.functional as F
 
 def trans():
     cascade_path = "haarcascade_frontalface_alt.xml"
@@ -24,19 +25,16 @@ def trans():
 
     cascade = cv2.CascadeClassifier(cascade_path)
 
-    face_img = Image.open("./kao.png")
-
     facerect = cascade.detectMultiScale(img_gray, scaleFactor=1.2, minNeighbors=5, minSize=(50, 50))
 
-    imgs = []
     for rect in facerect:
         # 顔画像のcrop
         img3 = img_copy.copy()
         img3 = img3.crop((rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])).resize((256, 256), Image.BICUBIC)
         # imgs.append(img3)
-        trans_face(img3)
+        img3 = trans_face(img3, rect[0])
 
-        face_img = face_img.resize((rect[2], rect[3]), Image.BICUBIC)
+        face_img = img3.resize((rect[2], rect[3]), Image.BICUBIC)
 
         img3.save("./imgs/{}.jpg".format(rect[0]))
         img.paste(face_img, (rect[0], rect[1]))
@@ -80,15 +78,21 @@ def create_labels(self, c_org):
     return c_trg_list
 
 
-def trans_face(img):
+def trans_face(img, i):
     with torch.no_grad():
         # Prepare input images and target domain labels.
         x_real = transform(img)
         x_real = x_real.to(device)
-        x_real = G(torch.Tensor([1, x_real.cpu().numpy()]), torch.Tensor([1, 256, 256, c_trg.numpy()]))
+        x_real = G(x_real, c_trg)
 
-        save_image(denorm(x_real.data.cpu()), "trans_img.jpg", nrow=1, padding=0)
-        print('Saved real and fake images into {}...'.format("trans_img.jpg"))
+        x_concat = torch.cat(tuple(x_real), dim=3)
+        save_image(denorm(x_real.data.cpu()), "./result/{}.jpg".format(i), nrow=1, padding=0)
+        print('Saved real and fake images into {}...'.format(i))
+        x_real = x_real.cpu().numpy()
+        x_real = np.delete(x_real, 1, axis=1)
+        x_real = torch.from_numpy(x_real).to(device)
+        print(x_real.shape)
+        return to_pil(denorm(x_real.data.cpu()))    # Image.open("./result/{}.jpg".format(i))
 
 
 if __name__ == '__main__':
@@ -99,18 +103,19 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     G = Generator()
-    # G = G.to(device)
+    G.to(device)
+    restore_model()
 
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young']
 
     transform = T.Compose([T.Resize(256), T.ToTensor()])
+    to_pil = T.Compose([T.ToPILImage()])
 
-    c_trg = torch.Tensor([0, 1, 0, 1, 0]).to(device)
+    c_trg = torch.Tensor([0, 1, 0, 0, 0]).to(device)
     c_org = torch.Tensor([1, 0, 0, 1, 1]).to(device)
     c_dim = 5
 
     zero_celeba = torch.zeros(1, c_dim).to(device)  # Zero vector for CelebA.
-
 
     trans()
 
