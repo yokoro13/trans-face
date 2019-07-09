@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 from model import Generator
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 from PIL import Image, ImageDraw, ImageFilter
 from torchvision import transforms as T
 import torchvision.transforms.functional as F
@@ -85,14 +85,15 @@ def trans_face(img, i):
         x_real = x_real.to(device)
         x_real = G(x_real, c_trg)
 
-        x_concat = torch.cat(tuple(x_real), dim=3)
-        save_image(denorm(x_real.data.cpu()), "./result/{}.jpg".format(i), nrow=1, padding=0)
-        print('Saved real and fake images into {}...'.format(i))
-        x_real = x_real.cpu().numpy()
-        x_real = np.delete(x_real, 1, axis=1)
-        x_real = torch.from_numpy(x_real).to(device)
-        print(x_real.shape)
-        return to_pil(denorm(x_real.data.cpu()))    # Image.open("./result/{}.jpg".format(i))
+        return tensor_to_pil(x_real, nrow=1, padding=0)
+
+
+def tensor_to_pil(tensor, nrow=8, padding=2, normalize=False, range=None, scale_each=False, pad_value=0):
+    grid = make_grid(tensor, nrow=nrow, padding=padding, pad_value=pad_value,
+                     normalize=normalize, range=range, scale_each=scale_each)
+    ndarr = grid.mul_(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
+    im = Image.fromarray(ndarr)
+    return im
 
 
 if __name__ == '__main__':
@@ -111,11 +112,12 @@ if __name__ == '__main__':
     transform = T.Compose([T.Resize(256), T.ToTensor()])
     to_pil = T.Compose([T.ToPILImage()])
 
-    c_trg = torch.Tensor([0, 1, 0, 0, 0]).to(device)
+    c_trg = torch.Tensor([0, 0, 0, 1, 0]).to(device)
     c_org = torch.Tensor([1, 0, 0, 1, 1]).to(device)
     c_dim = 5
 
     zero_celeba = torch.zeros(1, c_dim).to(device)  # Zero vector for CelebA.
 
     trans()
+    print("complete")
 
