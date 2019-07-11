@@ -16,6 +16,7 @@ def classification(image):
         out_cls[out_cls >= 0.5] = 1
         return out_cls
 
+
 def create_labels(c_org):
     hair_color_indices = []
     for i, attr_name in enumerate(selected_attrs):
@@ -97,11 +98,10 @@ def test():
 def capture():
     cap = cv2.VideoCapture(0)
     while True:
-        ret, img = cap.read()
+        _, img = cap.read()
         trans(cv2_to_pil(img))
 
-        key = cv2.waitKey(1)
-        if key == 13:
+        if cv2.waitKey(10) < 10:
             break
     cap.release()
 
@@ -125,7 +125,8 @@ if __name__ == '__main__':
     c_dim = 5
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young']
 
-    trans(input_img)
+    # trans(input_img)
+    capture()
     print("complete")
 
     test()
