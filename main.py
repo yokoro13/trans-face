@@ -1,5 +1,5 @@
 import cv2
-from util import pil_to_tensor, cv2_to_pil, tensor_to_pil
+from util import pil_to_tensor, cv2_to_pil, tensor_to_pil, pil_to_cv2
 import numpy as np
 import torch
 from model import Generator, Classification
@@ -50,14 +50,14 @@ def trans(img):
         start_y = rect[1] - rect[3]//2
 
         img3 = img_copy.copy().crop((start_x, start_y, rect[0] + rect[2] + rect[2]//2, rect[1] + rect[3] + rect[3]//2))
-
         img3 = pil_to_tensor(img3)
         c_org = classification(img3)
         c = create_labels(c_org)
 
         face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.BICUBIC)
-
+        # TODO 背景をきりぬく
         img.paste(face_img, (start_x, start_y))
+        cv2.imshow("img", pil_to_cv2(img))
 
     img.save("cascade.jpg")
 
@@ -99,9 +99,10 @@ def capture():
     cap = cv2.VideoCapture(0)
     while True:
         _, img = cap.read()
+        img = cv2.imread("4.jpg")
         trans(cv2_to_pil(img))
 
-        if cv2.waitKey(10) < 10:
+        if cv2.waitKey(1) == 0:
             break
     cap.release()
 
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     c_dim = 5
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young']
 
-    # trans(input_img)
+    #trans(input_img)
     capture()
     print("complete")
 

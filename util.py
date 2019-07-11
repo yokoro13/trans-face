@@ -3,6 +3,7 @@ import cv2
 from PIL import Image
 from torchvision import transforms as T
 import torch
+import numpy as np
 
 transform = []
 transform.append(T.Resize(128))
@@ -27,6 +28,11 @@ def pil_to_tensor(img):
     return img
 
 
-def cv2_to_pil(img):
-    cv2im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(cv2im)
+def cv2_to_pil(cv2im):
+    pil_img = cv2.cvtColor(cv2im, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(pil_img)
+
+
+def pil_to_cv2(pil_img):
+    cv2im = np.asarray(pil_img)
+    return cv2.cvtColor(cv2im, cv2.COLOR_BGR2RGB)
