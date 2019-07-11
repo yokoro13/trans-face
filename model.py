@@ -1,6 +1,6 @@
-import torch
 import torch.nn as nn
 import numpy as np
+import torch
 
 
 class ResidualBlock(nn.Module):
@@ -82,5 +82,4 @@ class Classification(nn.Module):
 
     def forward(self, x):
         out_cls = self.main(x)
-        print(out_cls.shape)
         return out_cls.view(out_cls.size(0), out_cls.size(1))
