@@ -9,7 +9,7 @@ from PIL import ImageEnhance
 from PIL import ImageDraw
 
 
-def graphcit(img):
+def graphct(img):
     THRESH_MIN, THRESH_MAX = (100, 255)
     THRESH_MODE = cv2.THRESH_BINARY_INV
 
