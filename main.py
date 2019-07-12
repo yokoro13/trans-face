@@ -31,7 +31,8 @@ def create_labels(c_org):
                     if j != i:
                         out_cls[:, j] = 0
         else:
-            out_cls[:, i] = (c_org[i] != c_trg[:, i])
+            if c_trg[:, i] == 1:
+                out_cls[:, i] = (c_org[i] != c_trg[:, i])
     return out_cls
 
 
@@ -57,9 +58,8 @@ def trans(img):
         face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.BICUBIC)
         # TODO 背景をきりぬく
         img.paste(face_img, (start_x, start_y))
-        cv2.imshow("img", pil_to_cv2(img))
 
-    img.save("cascade.jpg")
+    return pil_to_cv2(img)
 
 
 def denorm(x):
@@ -99,10 +99,11 @@ def capture():
     cap = cv2.VideoCapture(0)
     while True:
         _, img = cap.read()
-        img = cv2.imread("4.jpg")
-        trans(cv2_to_pil(img))
+        cv2.imshow("img", img)
+        # img = cv2.imread("4.jpg")g
+        cv2.imshow("trans", trans(cv2_to_pil(img)))
 
-        if cv2.waitKey(1) == 0:
+        if cv2.waitKey(1) >= 10:
             break
     cap.release()
 
@@ -122,9 +123,10 @@ if __name__ == '__main__':
 
     restore_model()
 
-    c_trg = torch.Tensor([[0, 1, 0, 1, 0]]).to(device)
-    c_dim = 5
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young']
+    c_trg = torch.Tensor([[0, 0, 1, 0, 0]]).to(device)
+    c_dim = 5
+
 
     #trans(input_img)
     capture()
