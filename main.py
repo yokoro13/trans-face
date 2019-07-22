@@ -5,7 +5,8 @@ import torch
 from model import Generator, Classification
 from PIL import Image
 import os
-
+import time
+from deeolab_v3_plus.segmentation import Segmentation
 
 def classification(image):
     with torch.no_grad():
@@ -30,10 +31,24 @@ def create_labels(c_org):
                 for j in hair_color_indices:
                     if j != i:
                         out_cls[:, j] = 0
-        else:
+        """else:
             if c_trg[:, i] == 1:
                 out_cls[:, i] = (c_org[i] != c_trg[:, i])
+        """
     return out_cls
+
+
+def merge_img(img_org, img_trans, img_mask):
+    h, w, _ = img_org.shape
+    print(img_org.shape)
+    for y in range(h):
+        for x in range(w):
+            if all(img_mask[y, x]) == 0:
+                img_mask[y, x] = img_org[y, x]
+            if all(img_mask[y, x] == 255):
+                img_mask[y, x] = img_trans[y, x]
+
+    return cv2_to_pil(img_mask)
 
 
 def trans(img):
@@ -55,27 +70,28 @@ def trans(img):
         c_org = classification(img3)
         c = create_labels(c_org)
 
-        face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.BICUBIC)
-        # TODO 背景をきりぬく
+        face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.LANCZOS)
+
+        cut_img = deeplab.validation(face_img)
+        cut_img = cv2.resize(cut_img, (2 * rect[2], 2 * rect[3]), interpolation=cv2.INTER_NEAREST)
+        cv2.imwrite("result/{}.jpg".format(rect[0]), cut_img)
+        face_img = merge_img(pil_to_cv2(tensor_to_pil(img3.data).resize((2 * rect[2], 2 * rect[3]))), pil_to_cv2(face_img), cut_img)
+        face_img.save("result/{}_merge.jpg".format(rect[0]))
+
         img.paste(face_img, (start_x, start_y))
 
     return pil_to_cv2(img)
 
 
-def denorm(x):
-    out = (x + 1) / 2
-    return out.clamp_(0, 1)
-
-
 def restore_model():
-    G.load_state_dict(torch.load("./models/generator.ckpt", map_location=lambda storage, loc: storage))
-    C.load_state_dict(torch.load("./models/classification.ckpt", map_location=lambda storage, loc: storage))
+    G.load_state_dict(torch.load("./models/generator_5.ckpt", map_location=lambda storage, loc: storage))
+    C.load_state_dict(torch.load("./models/classification_5.ckpt", map_location=lambda storage, loc: storage))
 
 
 def trans_face(x_real, c):
     with torch.no_grad():
         x_real = G(x_real, c)
-        return tensor_to_pil(denorm(x_real.data.cpu()), nrow=1, padding=0)
+        return tensor_to_pil(x_real.data.cpu(), nrow=1, padding=0)
 
 
 def test():
@@ -86,51 +102,62 @@ def test():
     print(test_data)
 
     for data in test_data:
+        start = time.time()
         img3 = pil_to_tensor(Image.open(test_data_dir + data))
         c_org = classification(img3)
         c = create_labels(c_org)
         img = trans_face(img3, c)
-
+        print(time.time()-start)
         img.save(test_result_dir + data)
     print("end")
 
 
 def capture():
     cap = cv2.VideoCapture(0)
+    fourcc = cv2.VideoWriter_fourcc("m", "p", "4", "v")
+    fps = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # フレーム数
+    video = cv2.VideoWriter("video.mp4", fourcc, 10.0, (640, 640))
+
     while True:
         _, img = cap.read()
         cv2.imshow("img", img)
-        # img = cv2.imread("4.jpg")g
-        cv2.imshow("trans", trans(cv2_to_pil(img)))
+        img = trans(cv2_to_pil(img))
+        cv2.imshow("trans", img)
+        img = cv2.resize(img, (640, 640))
+        video.write(img)
 
         if cv2.waitKey(1) >= 10:
             break
     cap.release()
+    video.release()
 
 
 if __name__ == '__main__':
 
     cascade_path = "haarcascade_frontalface_alt.xml"
 
-    img_path = "4.jpg"
+    img_path = "images/4.jpg"
     input_img = Image.open(img_path)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    G = Generator()
-    C = Classification()
+    c_dim = 5
+    deeplab = Segmentation()
+
+    G = Generator(c_dim=c_dim)
+    C = Classification(c_dim=c_dim)
     G.to(device)
     C.to(device)
 
     restore_model()
 
-    selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young']
-    c_trg = torch.Tensor([[0, 0, 1, 0, 0]]).to(device)
-    c_dim = 5
+    selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young', "Eyeglasses", "Smiling"]
+    c_trg = torch.Tensor([[0, 1, 0, 1, 1]]).to(device)
 
 
-    #trans(input_img)
+    # cv2.imwrite("cascade.jpg", trans(input_img))
+
     capture()
-    print("complete")
+    # print("complete")
 
     test()
 
