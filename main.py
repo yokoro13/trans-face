@@ -2,21 +2,11 @@ import cv2
 from util import pil_to_tensor, cv2_to_pil, tensor_to_pil, pil_to_cv2
 import numpy as np
 import torch
-from model import Generator, Classification
+from model import Generator
 from PIL import Image
 import os
 import time
 from deeolab_v3_plus.segmentation import Segmentation
-
-def classification(image):
-    with torch.no_grad():
-        out_cls = C(image)
-        out_cls = out_cls.view(out_cls.size(1))
-
-        out_cls[out_cls < 0.5] = 0
-        out_cls[out_cls >= 0.5] = 1
-        return out_cls
-
 
 def create_labels():
     hair_color_indices = []
@@ -61,7 +51,6 @@ def trans(img):
 
         img3 = img_copy.copy().crop((start_x, start_y, rect[0] + rect[2] + rect[2]//2, rect[1] + rect[3] + rect[3]//2))
         img3 = pil_to_tensor(img3)
-        # c_org = classification(img3)
         c = create_labels()
 
         face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.LANCZOS)
@@ -80,7 +69,6 @@ def trans(img):
 
 def restore_model():
     G.load_state_dict(torch.load("./models/generator_5.ckpt", map_location=lambda storage, loc: storage))
-    C.load_state_dict(torch.load("./models/classification_5.ckpt", map_location=lambda storage, loc: storage))
 
 
 def trans_face(x_real, c):
@@ -99,7 +87,6 @@ def test():
     for data in test_data:
 
         img3 = pil_to_tensor(Image.open(test_data_dir + data))
-        # c_org = classification(img3)
         c = create_labels()
         img = trans_face(img3, c)
         img.save(test_result_dir + data)
@@ -137,9 +124,7 @@ if __name__ == '__main__':
     deeplab = Segmentation()
 
     G = Generator(c_dim=c_dim)
-    C = Classification(c_dim=c_dim)
     G.to(device)
-    C.to(device)
 
     restore_model()
 
