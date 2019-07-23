@@ -18,7 +18,7 @@ def classification(image):
         return out_cls
 
 
-def create_labels(c_org):
+def create_labels():
     hair_color_indices = []
     for i, attr_name in enumerate(selected_attrs):
         if attr_name in ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Gray_Hair']:
@@ -39,13 +39,7 @@ def create_labels(c_org):
 
 
 def merge_img(img_org, img_trans, img_mask):
-    h, w, _ = img_org.shape
-    print(img_org.shape)
-
-    img_mask = cv2.bitwise_and(img_trans, img_trans, img_mask)
-    img_mask[img_mask==255] = 0
-    img_mask = cv2.bitwise_and(img_org, img_org, img_mask)
-
+    img_mask = np.where(img_mask==0, img_org, img_trans)
     return cv2_to_pil(img_mask)
 
 
@@ -67,8 +61,8 @@ def trans(img):
 
         img3 = img_copy.copy().crop((start_x, start_y, rect[0] + rect[2] + rect[2]//2, rect[1] + rect[3] + rect[3]//2))
         img3 = pil_to_tensor(img3)
-        c_org = classification(img3)
-        c = create_labels(c_org)
+        # c_org = classification(img3)
+        c = create_labels()
 
         face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.LANCZOS)
 
@@ -105,8 +99,8 @@ def test():
     for data in test_data:
 
         img3 = pil_to_tensor(Image.open(test_data_dir + data))
-        c_org = classification(img3)
-        c = create_labels(c_org)
+        # c_org = classification(img3)
+        c = create_labels()
         img = trans_face(img3, c)
         img.save(test_result_dir + data)
     print("end")
@@ -151,10 +145,9 @@ if __name__ == '__main__':
 
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young', "Eyeglasses", "Smiling"]
     c_trg = torch.Tensor([[0, 1, 0, 1, 1]]).to(device)
-    # cv2.imwrite("cascade.jpg", trans(input_img))
+    cv2.imwrite("cascade.jpg", trans(input_img))
 
-    capture()
-    # print("complete")
+    # capture()
 
     test()
 
