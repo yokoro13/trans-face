@@ -15,27 +15,26 @@ def create_labels():
             hair_color_indices.append(i)
 
     out_cls = c_trg.clone()
-    for i in range(c_dim):
+    """for i in range(c_dim):
         if i in hair_color_indices:  # Set one hair color to 1 and the rest to 0.
             if c_trg[:, i] == 1:
                 for j in hair_color_indices:
                     if j != i:
                         out_cls[:, j] = 0
-        """else:
+     else:
             if c_trg[:, i] == 1:
-                out_cls[:, i] = (c_org[i] != c_trg[:, i])
-        """
+                out_cls[:, i] = (c_org[i] != c_trg[:, i])"""
+
     return out_cls
 
 
 def merge_img(img_org, img_trans, img_mask):
-    img_mask = np.where(img_mask==0, img_org, img_trans)
+    img_mask = np.where(img_mask == 0, img_org, img_trans)
     return cv2_to_pil(img_mask)
 
 
 def trans(img):
     img = img.convert("RGB")
-    img_copy = img.copy()
     img_gray = np.asarray(img)
     img_gray = cv2.cvtColor(img_gray, cv2.COLOR_RGB2GRAY)
 
@@ -49,7 +48,7 @@ def trans(img):
         start_x = rect[0] - rect[2]//2
         start_y = rect[1] - rect[3]//2
 
-        img3 = img_copy.copy().crop((start_x, start_y, rect[0] + rect[2] + rect[2]//2, rect[1] + rect[3] + rect[3]//2))
+        img3 = img.crop((start_x, start_y, rect[0] + rect[2] + rect[2]//2, rect[1] + rect[3] + rect[3]//2))
         img3 = pil_to_tensor(img3)
         c = create_labels()
 
@@ -130,9 +129,9 @@ if __name__ == '__main__':
 
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young', "Eyeglasses", "Smiling"]
     c_trg = torch.Tensor([[0, 1, 0, 1, 1]]).to(device)
-    cv2.imwrite("cascade.jpg", trans(input_img))
+    # cv2.imwrite("cascade.jpg", trans(input_img))
 
-    # capture()
+    capture()
 
     test()
 
