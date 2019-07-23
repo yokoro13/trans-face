@@ -41,12 +41,10 @@ def create_labels(c_org):
 def merge_img(img_org, img_trans, img_mask):
     h, w, _ = img_org.shape
     print(img_org.shape)
-    for y in range(h):
-        for x in range(w):
-            if all(img_mask[y, x]) == 0:
-                img_mask[y, x] = img_org[y, x]
-            if all(img_mask[y, x] == 255):
-                img_mask[y, x] = img_trans[y, x]
+
+    img_mask = cv2.bitwise_and(img_trans, img_trans, img_mask)
+    img_mask[img_mask==255] = 0
+    img_mask = cv2.bitwise_and(img_org, img_org, img_mask)
 
     return cv2_to_pil(img_mask)
 
@@ -61,6 +59,8 @@ def trans(img):
     facerect = cascade.detectMultiScale(img_gray, scaleFactor=1.2, minNeighbors=2, minSize=(10, 10))
 
     for rect in facerect:
+        start = time.time()
+
         # 顔画像のcrop
         start_x = rect[0] - rect[2]//2
         start_y = rect[1] - rect[3]//2
@@ -73,12 +73,13 @@ def trans(img):
         face_img = trans_face(img3, c).resize((2 * rect[2], 2 * rect[3]), Image.LANCZOS)
 
         cut_img = deeplab.validation(face_img)
+
         cut_img = cv2.resize(cut_img, (2 * rect[2], 2 * rect[3]), interpolation=cv2.INTER_NEAREST)
-        cv2.imwrite("result/{}.jpg".format(rect[0]), cut_img)
+
         face_img = merge_img(pil_to_cv2(tensor_to_pil(img3.data).resize((2 * rect[2], 2 * rect[3]))), pil_to_cv2(face_img), cut_img)
-        face_img.save("result/{}_merge.jpg".format(rect[0]))
 
         img.paste(face_img, (start_x, start_y))
+        print(time.time() - start)
 
     return pil_to_cv2(img)
 
@@ -102,12 +103,11 @@ def test():
     print(test_data)
 
     for data in test_data:
-        start = time.time()
+
         img3 = pil_to_tensor(Image.open(test_data_dir + data))
         c_org = classification(img3)
         c = create_labels(c_org)
         img = trans_face(img3, c)
-        print(time.time()-start)
         img.save(test_result_dir + data)
     print("end")
 
@@ -115,7 +115,6 @@ def test():
 def capture():
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc("m", "p", "4", "v")
-    fps = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # フレーム数
     video = cv2.VideoWriter("video.mp4", fourcc, 10.0, (640, 640))
 
     while True:
@@ -136,7 +135,7 @@ if __name__ == '__main__':
 
     cascade_path = "haarcascade_frontalface_alt.xml"
 
-    img_path = "images/4.jpg"
+    img_path = "images/img.jpg"
     input_img = Image.open(img_path)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -152,8 +151,6 @@ if __name__ == '__main__':
 
     selected_attrs = ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young', "Eyeglasses", "Smiling"]
     c_trg = torch.Tensor([[0, 1, 0, 1, 1]]).to(device)
-
-
     # cv2.imwrite("cascade.jpg", trans(input_img))
 
     capture()
